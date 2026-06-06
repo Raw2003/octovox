@@ -1,0 +1,49 @@
+numpy>=1.20,<2
+scipy>=1.7
+matplotlib>=3.4
+flask>=2.0
+sounddevice>=0.4
+
+# ─────────────────────────────────────────────────────────────────────
+#  Optional dependencies — each unlocks a different SOTA feature.
+# ─────────────────────────────────────────────────────────────────────
+
+# ★ OCTOVOX-MAX (final neural cleanup pass after the winner is picked):
+#     py -3.11 -m pip install deepfilternet torch==2.1.2 torchaudio==2.1.2
+
+# ⑦ Neural-MVDR-WPE (7th algorithm — WPE dereverb + Silero VAD + MVDR):
+#     py -3.11 -m pip install nara-wpe torch==2.1.2 torchaudio==2.1.2
+
+# ⚡ GPU ACCELERATION (Silero VAD runs on the GPU; enables ⑦ Neural-MVDR-WPE):
+#     Install the CUDA build of torch instead of the CPU build. Match the
+#     wheel to your Python version — the torch==2.1.2 pins above only have
+#     wheels up to Python 3.11; newer Python needs a newer torch.
+#
+#     Verified working on this kit (Python 3.14 + RTX 3050, driver CUDA 13.x):
+#       python -m pip install torch==2.11.0+cu128 torchaudio==2.11.0+cu128 ^
+#           --index-url https://download.pytorch.org/whl/cu128
+#     For older Python 3.10/3.11 + RTX 20/30/40 series (CUDA 12.1):
+#       py -3.11 -m pip install torch==2.1.2 torchaudio==2.1.2 ^
+#           --index-url https://download.pytorch.org/whl/cu121
+#
+#     NOTE: torch's GPU use is limited to the neural extras (Silero VAD,
+#     and optionally DeepFilterNet). For GPU acceleration of the heavy DSP
+#     itself, see CuPy below.
+
+# ⚡⚡ GPU DSP via CuPy (the masked covariance build + the PAST RTF tracker
+#     and its time-varying MVDR run on the GPU; ~12–100× faster than the
+#     CPU loops). Match the wheel to your CUDA driver branch:
+#       python -m pip install "cupy-cuda13x[ctk]"     # NVIDIA driver CUDA 13.x
+#       python -m pip install "cupy-cuda12x[ctk]"     # NVIDIA driver CUDA 12.x
+#     The [ctk] extra ships the CUDA toolkit headers CuPy needs to JIT its
+#     elementwise kernels. If absent, the pipeline transparently uses NumPy.
+#     Force the CPU path anytime with the env var OCTOVOX_GPU=0.
+#
+#     WINDOWS CAVEAT: CuPy must initialise its CUDA libs before torch is
+#     imported, or cuBLAS fails to load. pipeline.py already imports CuPy
+#     first and warms it up, so this is handled — but keep that ordering if
+#     you refactor the imports.
+#
+#     STILL CPU-ONLY: STFT, the classical beamformers (they use SciPy's
+#     generalized eigh, which CuPy lacks), the bootstrap, and nara-wpe's
+#     WPE dereverberation.

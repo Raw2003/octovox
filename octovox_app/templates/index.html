@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OCTOVOX — Speech Extraction Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><circle cx='32' cy='32' r='28' fill='%232DD4BF'/><text x='32' y='42' font-family='Inter' font-size='32' font-weight='800' text-anchor='middle' fill='%23062521'>O</text></svg>">
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="#top" class="brand">
+      <span class="brand-mark"></span>
+      <span class="brand-text">OCTOVOX</span>
+      <span class="brand-sub">Speech Extraction Studio</span>
+    </a>
+    <div class="nav-actions">
+      <a href="#capture" class="nav-link" data-section="capture">Capture</a>
+      <a href="#queueSection" class="nav-link" data-section="queueSection">Files</a>
+      <a href="#results"  class="nav-link" id="navResults" data-disabled="true" data-section="results">Results</a>
+      <a href="#verdict"  class="nav-link" data-section="verdict">Best algorithm</a>
+    </div>
+  </div>
+</nav>
+
+<main id="top">
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-grid">
+    <div class="hero-left">
+      <h1 class="hero-title">
+        <span class="hero-octo">OCTO</span><span class="hero-vox">VOX</span>
+      </h1>
+      <p class="hero-tag">
+        <span id="heroTagText"></span><span class="hero-cursor"></span>
+      </p>
+      <div class="hero-stats">
+        <div class="hero-stat"><div class="hsv">8</div><div class="hsl">microphones</div></div>
+        <div class="hero-stat"><div class="hsv">{% if has_wpe and has_vad %}5{% else %}4{% endif %}</div><div class="hsl">algorithms{% if has_wpe and has_vad %} ★{% endif %}</div></div>
+        <div class="hero-stat"><div class="hsv">48<span class="hsv-sub">kHz</span></div><div class="hsl">sample rate</div></div>
+        <div class="hero-stat"><div class="hsv">500</div><div class="hsl">bootstrap trials</div></div>
+      </div>
+    </div>
+    <div class="hero-right">
+      <div class="mic-orbit">
+        <span class="orbit-ring orbit-ring-1"></span>
+        <span class="orbit-ring orbit-ring-2"></span>
+        <span class="orbit-ring orbit-ring-3"></span>
+        <div class="mic-frame" id="micFrame">
+          <img id="micImg" src="/static/assets/sensibel_default.png" alt="sensiBel SB-POLARIS">
+        </div>
+      </div>
+      <div class="mic-caption">sensiBel SB-POLARIS P001 · 8× SBM100B optical MEMS</div>
+    </div>
+  </div>
+</section>
+
+<!-- CAPTURE: RECORD + UPLOAD + SAMPLE -->
+<section class="block" id="capture">
+  <div class="section-head">
+    <span class="step-num">01</span>
+    <div>
+      <h2 class="section-title">Get a recording</h2>
+      <p class="section-sub">Record live from your sensiBel kit, upload an existing 8-channel WAV, or generate a synthetic sample.</p>
+    </div>
+  </div>
+
+  <!-- 3-MODE TABS -->
+  <div class="tabs">
+    <button class="tab active" data-tab="record">🎙️ Record live</button>
+    <button class="tab" data-tab="upload">📁 Upload WAV</button>
+    <button class="tab" data-tab="sample">⚡ Synthetic sample</button>
+  </div>
+
+  <!-- RECORD PANEL -->
+  <div class="tab-panel active" id="tabRecord">
+    <div class="record-card">
+      <div class="record-head">
+        <div>
+          <div class="record-title">🎙️ Live recording</div>
+          <div class="record-sub">Captures from your selected input device at 48 kHz, 8 channels.</div>
+        </div>
+        <button class="link-btn" id="refreshDevices">↻ rescan devices</button>
+      </div>
+
+      <div class="record-row">
+        <label class="form-lab">Input device</label>
+        <select id="deviceSelect" class="form-select"><option>Loading…</option></select>
+      </div>
+
+      <div class="record-row record-row-grid">
+        <div>
+          <label class="form-lab">Channels</label>
+          <div class="form-static" id="chDisplay">8 <span class="muted">required</span></div>
+        </div>
+        <div>
+          <label class="form-lab">Sample rate</label>
+          <div class="form-static" id="srDisplay">48 kHz <span class="muted">required</span></div>
+        </div>
+        <div>
+          <label class="form-lab">Duration</label>
+          <div class="rec-dur">
+            <input type="range" id="recDuration" min="2" max="30" value="6" step="1">
+            <span id="recDurationVal">6 s</span>
+          </div>
+        </div>
+        <div>
+          <label class="form-lab">Filename</label>
+          <input type="text" id="recName" class="form-input" placeholder="rec_auto" value="">
+        </div>
+      </div>
+
+      <!-- Level meters (preflight) -->
+      <div class="levels hidden" id="levelsBlock">
+        <div class="levels-head">Channel levels <span class="muted">(0.3 s preflight)</span></div>
+        <div id="levelsBars" class="levels-bars"></div>
+        <div id="levelsWarn" class="levels-warn"></div>
+      </div>
+
+      <div class="record-actions">
+        <button class="btn-secondary" id="preflightBtn">⚙ Test mics (0.3 s)</button>
+        <button class="btn-primary btn-rec" id="recordBtn">
+          <span class="rec-dot"></span>
+          <span id="recordBtnText">Record &amp; analyse</span>
+        </button>
+      </div>
+
+      <div class="device-warn" id="deviceWarn"></div>
+    </div>
+  </div>
+
+  <!-- UPLOAD PANEL -->
+  <div class="tab-panel" id="tabUpload">
+    <div class="dz" id="dz">
+      <input type="file" id="fileInput" accept=".wav" hidden>
+      <div class="dz-inner">
+        <svg class="dz-icon" viewBox="0 0 64 64" fill="none">
+          <rect x="10" y="10" width="44" height="44" rx="10" stroke="currentColor" stroke-width="2" stroke-dasharray="5 4"/>
+          <path d="M32 22 V 42 M22 32 L 32 22 L 42 32" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div class="dz-title">Drop your <code>rec.wav</code> here</div>
+        <div class="dz-sub">or <button class="link-btn" id="browseBtn">browse files</button></div>
+        <div class="dz-meta">8 channels · 48 kHz · 24-bit · sensiBel SB-POLARIS only</div>
+      </div>
+    </div>
+    <div class="dz-spec">
+      <strong>Required:</strong> 8-channel WAV at 48 kHz.
+      Files that don't match these specs will be rejected with a detailed error explaining what's wrong.
+    </div>
+  </div>
+
+  <!-- SAMPLE PANEL -->
+  <div class="tab-panel" id="tabSample">
+    <div class="sample-card">
+      <div class="sample-left">
+        <div class="sample-title">Synthetic 8-channel sample</div>
+        <p class="sample-desc">Generates a simulated multichannel recording with a known speaker direction and realistic noise. Perfect for trying out OCTOVOX without hardware.</p>
+        <ul class="sample-bullets">
+          <li>8 channels · 48 kHz · ~6 seconds</li>
+          <li>Simulated speaker at a fixed azimuth</li>
+          <li>Configurable SNR (cleaner = higher dB)</li>
+        </ul>
+      </div>
+      <div class="sample-right">
+        <label class="form-lab">Target SNR</label>
+        <div class="rec-dur">
+          <input type="range" id="sampleSnr" min="-5" max="15" value="5" step="1">
+          <span id="sampleSnrVal">+5 dB</span>
+        </div>
+        <label class="form-lab" style="margin-top:14px;">Duration</label>
+        <div class="rec-dur">
+          <input type="range" id="sampleDur" min="3" max="12" value="6" step="1">
+          <span id="sampleDurVal">6 s</span>
+        </div>
+        <button class="btn-primary" id="sampleBtn" style="margin-top:18px;width:100%;">Generate &amp; analyse</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FILES -->
+<section class="block" id="queueSection">
+  <div class="section-head">
+    <span class="step-num">02</span>
+    <div>
+      <h2 class="section-title">Your files</h2>
+      <p class="section-sub">Click ▶ to analyse, ◉ to view results, ✎ to rename, ✕ to delete.</p>
+    </div>
+    <div class="files-head-actions">
+      <button class="btn-primary nav-action-btn" id="runAllBtn" title="Analyse every file that hasn't been processed yet">▶▶ Run all</button>
+      <button class="btn-secondary nav-action-btn" id="clearOutputBtn" title="Delete all previous analysis results">🗑 Clear output</button>
+      <button class="link-btn nav-action-btn" id="refreshFiles">↻ refresh</button>
+    </div>
+  </div>
+  <div class="files-card" id="filesCard">
+    <div class="files-toolbar" id="filesToolbar">
+      <div class="files-filter">
+        <span class="filter-icon">🔍</span>
+        <input type="text" id="filesFilter" placeholder="Filter files… (press / from anywhere)" autocomplete="off" spellcheck="false">
+        <button class="filter-clear hidden" id="filesFilterClear" title="Clear">×</button>
+      </div>
+      <div class="files-sort">
+        <label class="sort-label">Sort:</label>
+        <select id="filesSort">
+          <option value="newest" selected>Newest first</option>
+          <option value="oldest">Oldest first</option>
+          <option value="name">Name A→Z</option>
+          <option value="winrate">Win-rate ↓</option>
+        </select>
+      </div>
+      <div class="files-count" id="filesCount"></div>
+    </div>
+    <div class="files-empty" id="filesEmpty">
+      <div class="files-empty-icon">📂</div>
+      <div>No files yet — record above, upload, or generate a sample.</div>
+    </div>
+    <div class="files-list" id="filesList"></div>
+  </div>
+</section>
+
+<!-- PROGRESS -->
+<section class="block hidden" id="progressBlock">
+  <div class="progress-card">
+    <div class="progress-head">
+      <div class="progress-title" id="progressTitle">Analysing…</div>
+      <div class="progress-pct" id="progressPct">0%</div>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="progress-stages" id="progressStages">
+      <div class="ps" data-stage="load">load</div>
+      <div class="ps" data-stage="stft">STFT</div>
+      <div class="ps" data-stage="mask">mask</div>
+      <div class="ps" data-stage="csm">CSM/RTF</div>
+      <div class="ps" data-stage="bf">beamformers</div>
+      <div class="ps" data-stage="wpe">WPE</div>
+      <div class="ps" data-stage="boot">bootstrap</div>
+      <div class="ps" data-stage="render">render</div>
+    </div>
+    <div class="progress-log" id="progressLog"></div>
+  </div>
+</section>
+
+<!-- RESULTS -->
+<section class="block hidden" id="results">
+  <div class="section-head">
+    <span class="step-num">03</span>
+    <div>
+      <h2 class="section-title">Results</h2>
+      <p class="section-sub" id="resultsFile">—</p>
+    </div>
+  </div>
+
+  <div class="winner-card" id="winnerCard">
+    <div class="winner-left">
+      <div class="winner-eyebrow">★ Statistical winner</div>
+      <h2 class="winner-name" id="winnerName">—</h2>
+      <div class="winner-formula" id="winnerFormula"></div>
+      <div class="winner-stats">
+        <div class="ws-item"><div class="ws-val" id="wsConfidence">—</div><div class="ws-lab">confidence</div></div>
+        <div class="ws-sep"></div>
+        <div class="ws-item"><div class="ws-val" id="wsMargin">—</div><div class="ws-lab">SNR margin</div></div>
+        <div class="ws-sep"></div>
+        <div class="ws-item"><div class="ws-val" id="wsBootstrap">500</div><div class="ws-lab">bootstrap trials</div></div>
+      </div>
+    </div>
+    <div class="winner-right">
+      <button class="btn-primary" id="downloadWinnerBtn">Download winner ↓</button>
+      <button class="btn-secondary" id="downloadReportBtn">Full report ↗</button>
+    </div>
+  </div>
+
+  <!-- DFN polish notice (only visible when DFN ran) -->
+  <div class="card dfn-notice hidden" id="dfnNotice">
+    <div class="dfn-icon">✨</div>
+    <div class="dfn-content">
+      <div class="dfn-eyebrow">Plus — final neural polish</div>
+      <div class="dfn-title">OCTOVOX-MAX</div>
+      <div class="dfn-desc">The winning audio above was additionally cleaned by <b>DeepFilterNet</b>, a pretrained neural model. This is a polish, not a competing algorithm.</div>
+    </div>
+    <button class="btn-secondary" id="downloadMaxBtn">Download MAX ↓</button>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <div>
+        <h3 class="card-title">🎧 Listen — input vs winner</h3>
+        <div class="card-sub">Tap a track to play; only one plays at a time.</div>
+      </div>
+    </div>
+    <div class="track-row">
+      <div class="track-meta">
+        <div class="track-name">INPUT</div>
+        <div class="track-sub" id="trackInputSub">8-channel mix</div>
+      </div>
+      <div class="track-wave" id="waveInput"></div>
+      <button class="track-play" data-target="waveInput">▶</button>
+    </div>
+    <div class="track-row track-row-winner">
+      <div class="track-meta">
+        <div class="track-name"><span class="winner-badge">★</span> WINNER</div>
+        <div class="track-sub" id="trackWinnerSub">—</div>
+      </div>
+      <div class="track-wave" id="waveWinner"></div>
+      <button class="track-play" data-target="waveWinner">▶</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3 class="card-title">🏆 Algorithm leaderboard for this recording</h3>
+      <div class="card-sub">Bootstrap test: which algorithm wins most of 500 random sub-samples.</div>
+    </div>
+    <div id="leaderboard" class="leaderboard"></div>
+  </div>
+
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-head">
+        <h3 class="card-title">🎯 Direction of arrival</h3>
+        <div class="card-sub">SRP-PHAT confidence map across azimuth.</div>
+      </div>
+      <div class="doa-wrap"><svg id="doaRadar" viewBox="-145 -125 290 250" preserveAspectRatio="xMidYMid meet"></svg></div>
+      <div class="doa-readout" id="doaReadout">—</div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <h3 class="card-title">📊 Per-band SNR improvement</h3>
+        <div class="card-sub">Input vs winner across 7 frequency bands.</div>
+      </div>
+      <div id="bandChart" class="band-chart"></div>
+    </div>
+  </div>
+</section>
+
+<!-- VERDICT -->
+<section class="block" id="verdict">
+  <div class="section-head">
+    <span class="step-num">04</span>
+    <div>
+      <h2 class="section-title">Best algorithm <span class="muted">— across all your recordings</span></h2>
+      <p class="section-sub" id="verdictSub">Process at least one recording to see the verdict.</p>
+    </div>
+    <button class="link-btn nav-action-btn" id="refreshVerdict">↻ refresh</button>
+  </div>
+
+  <div class="verdict-banner hidden" id="verdictBanner">
+    <div class="vb-trophy">🏆</div>
+    <div class="vb-content">
+      <div class="vb-eyebrow">Overall winner</div>
+      <div class="vb-name" id="vbName">—</div>
+      <div class="vb-summary" id="vbSummary">—</div>
+    </div>
+    <div class="vb-score">
+      <div class="vbs-val" id="vbScore">—</div>
+      <div class="vbs-lab">consistency<br>score</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3 class="card-title">Algorithm ranking</h3>
+      <div class="card-sub">Composite score = 60% project win-rate + 30% bootstrap stability + 10% mean SNR.</div>
+    </div>
+    <div id="verdictTable" class="verdict-table"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3 class="card-title">Per-recording results</h3>
+      <div class="card-sub">One row per analysed file. Click a row to re-view its results.</div>
+    </div>
+    <div id="recordingsTable" class="recordings-table"></div>
+  </div>
+</section>
+
+<footer class="footer">
+  OCTOVOX · for the sensiBel SB-POLARIS 8-mic optical MEMS array
+</footer>
+
+</main>
+
+<div id="toastWrap" class="toast-wrap"></div>
+<div id="modalRoot"></div>
+
+<!-- Sticky mini-progress bar that pins under the nav during analysis. -->
+<div id="stickyProgress" class="sticky-progress hidden" role="status" aria-live="polite">
+  <div class="sp-spin">⟳</div>
+  <div class="sp-text">
+    <div class="sp-title" id="spTitle">Analysing…</div>
+    <div class="sp-sub" id="spSub">starting…</div>
+  </div>
+  <div class="sp-pct" id="spPct">0%</div>
+  <div class="sp-bar"><div class="sp-fill" id="spFill"></div></div>
+</div>
+
+<script>
+window.OCTOVOX_ENV = {
+  has_dfn: {{ 'true' if has_dfn else 'false' }},
+  has_wpe: {{ 'true' if has_wpe else 'false' }},
+  has_vad: {{ 'true' if has_vad else 'false' }}
+};
+</script>
+<script src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>

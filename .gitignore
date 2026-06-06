@@ -1,0 +1,31 @@
+# ─── Python ───────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# ─── Virtual environments ─────────────────────────────────────────────
+.venv/
+.venv311/
+venv/
+env/
+
+# ─── Editor / tooling / OS cruft ──────────────────────────────────────
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# ─── Runtime artifacts ────────────────────────────────────────────────
+data/output/*
+!data/output/.gitkeep
+octovox_app/static/uploads/mic.*
+
+# ─── Sample audio ─────────────────────────────────────────────────────
+# These recordings are large (~12 MB each). We ship only a few
+# representative samples so the app is demoable on a fresh clone, and
+# ignore the rest. Drop your own .wav files in data/input/ to analyse them.
+data/input/*.wav
+!data/input/conference_room_single_person.wav
+!data/input/Conference_room_two_person_talk.wav
+!data/input/moving_speech_downward.wav
